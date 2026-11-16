@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0B1430">
 <title>Новогодний спуск — Дед Мороз на лыжах</title>
 <style>
@@ -28,9 +28,12 @@
   #c{position:fixed;inset:0;display:block;touch-action:none;cursor:pointer}
 
   .hidden{display:none !important}
+  /* Visually hidden, available to screen readers (item 11) */
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 
   /* ---------- HUD ---------- */
-  #hud{position:fixed;top:14px;left:14px;pointer-events:none;z-index:5}
+  /* Safe-area insets for notched devices (item 10) */
+  #hud{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));left:calc(14px + env(safe-area-inset-left,0px));pointer-events:none;z-index:5}
   .hud-card{
     background:var(--panel);border:1px solid var(--line);border-radius:16px;
     padding:10px 16px 12px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
@@ -47,14 +50,14 @@
   }
   .chip b{color:#fff;font-weight:800}
   .chip.gold{color:var(--gold)} .chip.gold b{color:var(--gold)}
-  #speedo{position:fixed;left:16px;bottom:14px;z-index:5;pointer-events:none;
+  #speedo{position:fixed;left:calc(16px + env(safe-area-inset-left,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:5;pointer-events:none;
     background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 14px;
     font-size:12px;font-weight:700;color:var(--mut);letter-spacing:.08em;font-variant-numeric:tabular-nums;
     backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
   #speedo b{color:var(--txt)}
 
   /* ---------- Top bar ---------- */
-  #topbar{position:fixed;top:14px;right:14px;z-index:20;display:flex;gap:8px;align-items:center}
+  #topbar{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));right:calc(14px + env(safe-area-inset-right,0px));z-index:20;display:flex;gap:8px;align-items:center}
   #topbar .chip{background:var(--panel);padding:8px 14px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
   .iconbtn{
     width:44px;height:44px;border-radius:14px;border:1px solid var(--line);
@@ -72,7 +75,8 @@
 
   /* ---------- Overlays ---------- */
   .overlay{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;
-    padding:20px;overflow-y:auto;animation:fadeIn .35s both}
+    padding:calc(20px + env(safe-area-inset-top,0px)) calc(20px + env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) calc(20px + env(safe-area-inset-left,0px));
+    overflow-y:auto;animation:fadeIn .35s both}
   #ovMenu{background:linear-gradient(180deg,rgba(6,12,30,.66),rgba(6,12,30,.18) 46%,rgba(6,12,30,.7))}
   #ovOver{background:radial-gradient(ellipse at 50% 40%,rgba(8,14,34,.5),rgba(6,11,28,.82));z-index:12}
   #ovPause{background:rgba(6,11,28,.62);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:12}
@@ -138,6 +142,13 @@
   @media (pointer:coarse){.touch-only{display:flex}.keys-only{display:none !important}}
   @media (max-width:560px){.legend{grid-template-columns:1fr}}
 
+  /* ---------- Reduced motion (item 12) ---------- */
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
+    .overlay,.menu-inner>*,.panel{animation:none !important}
+    .btn.primary,#goRecord{animation:none !important}
+  }
+
   /* ---------- Panels ---------- */
   .panel{
     width:min(92vw,470px);background:var(--panel);border:1px solid var(--line);border-radius:22px;
@@ -166,10 +177,11 @@
 </style>
 </head>
 <body>
-<canvas id="c"></canvas>
+<!-- Canvas is decorative; game state is announced via aria-live regions below (item 11) -->
+<canvas id="c" role="presentation" aria-hidden="true"></canvas>
 
 <div id="hud" class="hidden">
-  <div class="hud-card">
+  <div class="hud-card" role="status" aria-live="off">
     <div class="hud-label">ДИСТАНЦИЯ</div>
     <div class="hud-dist"><span id="hDist">0</span><span class="unit">м</span></div>
     <div class="hud-row">
@@ -178,29 +190,30 @@
     </div>
   </div>
 </div>
-<div id="speedo" class="hidden"><b id="kmh">0</b> км/ч</div>
+<div id="speedo" class="hidden" aria-hidden="true"><b id="kmh">0</b> км/ч</div>
+<div id="srStatus" class="sr-only" aria-live="polite"></div>
 
 <div id="topbar">
-  <span class="chip">РЕКОРД <b id="bestVal">0</b></span>
+  <span class="chip" title="Лучший результат">РЕКОРД <b id="bestVal">0</b></span>
   <button id="btnPause" class="iconbtn hidden" aria-label="Пауза" title="Пауза (P)">
-    <svg viewBox="0 0 24 24"><line x1="9" y1="5" x2="9" y2="19"/><line x1="15" y1="5" x2="15" y2="19"/></svg>
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><line x1="9" y1="5" x2="9" y2="19"/><line x1="15" y1="5" x2="15" y2="19"/></svg>
   </button>
-  <button id="btnSound" class="iconbtn" aria-label="Звук вкл/выкл" title="Звук (M)">
-    <svg class="on" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M18.5 6.5a8 8 0 0 1 0 11"/></svg>
-    <svg class="off" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><line x1="16" y1="9" x2="21" y2="15"/><line x1="21" y1="9" x2="16" y2="15"/></svg>
+  <button id="btnSound" class="iconbtn" aria-label="Звук вкл/выкл" aria-pressed="false" title="Звук (M)">
+    <svg class="on" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M18.5 6.5a8 8 0 0 1 0 11"/></svg>
+    <svg class="off" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 9v6h4l5 4V5L8 9H4z"/><line x1="16" y1="9" x2="21" y2="15"/><line x1="21" y1="9" x2="16" y2="15"/></svg>
   </button>
 </div>
 
-<div id="ovMenu" class="overlay">
+<div id="ovMenu" class="overlay" role="dialog" aria-modal="true" aria-labelledby="menuTitle">
   <div class="menu-inner">
     <div class="kicker">ДЕД МОРОЗ · БЕСКОНЕЧНЫЙ РАННЕР</div>
-    <h1>НОВОГОДНИЙ<br>СПУСК</h1>
+    <h1 id="menuTitle">НОВОГОДНИЙ<br>СПУСК</h1>
     <p class="tag">Мешок подарков за спиной, лыжи на снегу и горы до горизонта.
       Прыгай через <b>камни, сугробы и замёрзшие ели</b>, собирай звёзды и шары, крути сальто — Новый год ждёт!</p>
-    <div class="diff" id="diffRow">
-      <button class="pill" data-d="0">ПРОГУЛКА</button>
-      <button class="pill sel" data-d="1">КЛАССИКА</button>
-      <button class="pill" data-d="2">БУРАН</button>
+    <div class="diff" id="diffRow" role="group" aria-label="Сложность">
+      <button class="pill" data-d="0" aria-pressed="false">ПРОГУЛКА</button>
+      <button class="pill sel" data-d="1" aria-pressed="true">КЛАССИКА</button>
+      <button class="pill" data-d="2" aria-pressed="false">БУРАН</button>
     </div>
     <div><button id="btnStart" class="btn primary">В ПУТЬ!</button></div>
     <div class="legend">
@@ -215,9 +228,9 @@
   </div>
 </div>
 
-<div id="ovOver" class="overlay hidden">
+<div id="ovOver" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="goTitle">
   <div class="panel">
-    <h2>ИГРА ОКОНЧАНА</h2>
+    <h2 id="goTitle">ИГРА ОКОНЧАНА</h2>
     <div class="cause" id="goCause">Вы врезались в камень</div>
     <div class="flavor">Мешок рассыпался, но Новый год не отменяется!</div>
     <div id="goRecord" class="hidden">★ НОВЫЙ РЕКОРД! ★</div>
@@ -235,9 +248,9 @@
   </div>
 </div>
 
-<div id="ovPause" class="overlay hidden">
+<div id="ovPause" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
   <div class="panel">
-    <h2>ПАУЗА</h2>
+    <h2 id="pauseTitle">ПАУЗА</h2>
     <div class="flavor">Снежинки подождут.</div>
     <div class="btnrow">
       <button id="btnResume" class="btn primary">Продолжить</button>
@@ -262,22 +275,56 @@ const easeOutBack=t=>{const c=1.70158;t-=1;return 1+(c+1)*t*t*t+c*t*t;};
 const mix3=(a,b,t)=>[lerp(a[0],b[0],t),lerp(a[1],b[1],t),lerp(a[2],b[2],t)];
 const css=c=>'rgb('+(c[0]|0)+','+(c[1]|0)+','+(c[2]|0)+')';
 const $=id=>document.getElementById(id);
-const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+/* Reduced motion: react to live changes, not just initial value (item 12) */
+const rmq=matchMedia('(prefers-reduced-motion: reduce)');
+let reduced=rmq.matches;
+if(rmq.addEventListener)rmq.addEventListener('change',e=>{reduced=e.matches;});
 
-function load(k,d){try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v);}catch(e){return d;}}
-function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+/* Versioned localStorage access (item 14): keys are namespaced with DATA_VERSION.
+   On a version mismatch the loader falls back to defaults and migrates known legacy keys. */
+const DATA_VERSION=2;
+const KV=k=>'nm.v'+DATA_VERSION+'.'+k;
+const LEGACY={'best':'nm_best','mute':'nm_mute','diff':'nm_diff'};
+function load(k,d){
+  try{
+    const v=localStorage.getItem(KV(k));
+    if(v!==null)return JSON.parse(v);
+    const legacyKey=LEGACY[k]; /* one-time migration from unversioned keys */
+    if(legacyKey){
+      const lv=localStorage.getItem(legacyKey);
+      if(lv!==null){const parsed=JSON.parse(lv);save(k,parsed);return parsed;}
+    }
+    return d;
+  }catch(e){return d;}
+}
+function save(k,v){try{localStorage.setItem(KV(k),JSON.stringify(v));}catch(e){}}
 
 /* ============================== CANVAS ============================== */
 const cv=$('c'),ctx=cv.getContext('2d');
 let W=0,H=0,DPR=1,S=1,VW=0,VH=0;
-function resize(){
+/* Cached gradients (item 5): rebuilt only when size/palette changes */
+let skyGrad=null,skyGradKey='';
+let auroraBand=null,auroraKey='';
+let fogGrad=null,fogKey='';
+let terrainGrad=null,terrainKey='';
+let vignette=null,vignetteKey='';
+const RESIZE_DEBOUNCE_MS=150; /* item 4: debounce resize to avoid terrain jitter (item 3) */
+let resizeTimer=0;
+function applyResize(){
   DPR=Math.min(window.devicePixelRatio||1,2);
   W=window.innerWidth;H=window.innerHeight;
   cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);
   cv.style.width=W+'px';cv.style.height=H+'px';
   S=Math.min(H/540,W/780);VW=W/S;VH=H/S;
 }
-window.addEventListener('resize',resize);resize();
+function resize(){
+  applyResize();
+  clearTimeout(resizeTimer);
+  resizeTimer=setTimeout(applyResize,RESIZE_DEBOUNCE_MS);
+}
+window.addEventListener('resize',resize);
+window.addEventListener('orientationchange',resize);
+applyResize();
 
 function rr(g,x,y,w,h,r){
   r=Math.min(r,w/2,h/2);
@@ -351,11 +398,14 @@ function updatePalette(m){
   C.fg=css(mix3(trees,[10,14,30],0.5));
   C.drift=css(mix3(snow,white,0.6));
   C.sparkle=css(mix3(A.line,B.line,f));
+  /* Palette key: bump cached-gradient invalidation once per visible color step (item 5) */
+  paletteKey=Math.round(m/8);
 }
+let paletteKey=0;
 
 /* ============================== AUDIO ============================== */
 const AU={ctx:null,master:null,music:null,sfx:null,windG:null,noise:null,next:0,step:0,
-          muted:load('nm_mute',false)};
+          muted:load('mute',false)};
 function ensureAudio(){
   if(AU.ctx){if(AU.ctx.state==='suspended')AU.ctx.resume();return;}
   try{
@@ -456,16 +506,37 @@ function musicTick(){
   AU.windG.gain.value+=(target-AU.windG.gain.value)*0.05;
 }
 function toggleMute(){
-  AU.muted=!AU.muted;save('nm_mute',AU.muted);
+  AU.muted=!AU.muted;save('mute',AU.muted);
   $('btnSound').classList.toggle('muted',AU.muted);
   if(AU.ctx)AU.master.gain.setTargetAtTime(AU.muted?0:0.9,AU.ctx.currentTime,0.03);
 }
 
 /* ============================== TERRAIN ============================== */
 let runSeed=0;const T={a:0,b:0,c:0,d:0,e:0,f:0};
-function reseed(){runSeed=rand(1000);T.a=rand(TAU);T.b=rand(TAU);T.c=rand(TAU);T.d=rand(TAU);T.e=rand(TAU);T.f=rand(TAU);}
-function hash(n){const s=Math.sin(n*127.1+runSeed*311.7)*43758.5453;return s-Math.floor(s);}
+function reseed(){
+  runSeed=rand(1000);T.a=rand(TAU);T.b=rand(TAU);T.c=rand(TAU);T.d=rand(TAU);T.e=rand(TAU);T.f=rand(TAU);
+  ridgeCache.clear(); /* item 3: decorative ridges depend on hash(), reset on new seed */
+}
+/* Integer-hash (mulberry32 finalizer): deterministic, resize-independent, no sin() drift (item 3) */
+function hash(n){
+  let t=((n*4096)|0)+((runSeed*1000003)|0);
+  t=Math.imul(t^(t>>>15),t|1);
+  t^=t+Math.imul(t^(t>>>7),t|61);
+  return ((t^(t>>>14))>>>0)/4294967296;
+}
+/* Cached ground height samples (items 2 & 5): fixed grid → identical results at any window size */
+const GROUND_STEP=8;
+const groundCache=new Map();
 function groundY(x){
+  const key=Math.round(x/GROUND_STEP);
+  let v=groundCache.get(key);
+  if(v!==undefined)return v;
+  v=groundYRaw(key*GROUND_STEP);
+  if(groundCache.size>6000)groundCache.clear();
+  groundCache.set(key,v);
+  return v;
+}
+function groundYRaw(x){
   let t=clamp(x/900,0,1);t=t*t*(3-2*t);
   const m1=0.7+0.3*Math.sin(x*0.00023+T.e);
   const m2=0.5+0.5*Math.sin(x*0.00017+T.f);
@@ -473,6 +544,14 @@ function groundY(x){
                    +m2*(46*Math.sin(x*0.0072+T.c)+18*Math.sin(x*0.0031+T.d)));
 }
 function slopeAt(x){return(groundY(x+3)-groundY(x-3))/6;}
+/* Ridge decoration cache keyed by integer bucket index (item 2) */
+const ridgeCache=new Map();
+function ridgeVal(bucket,seedK){
+  const key=bucket*131071+seedK; /* unique integer key: same bucket → same value at any window size */
+  let v=ridgeCache.get(key);
+  if(v===undefined){v=hash(key);ridgeCache.set(key,v);}
+  return v;
+}
 
 /* ============================== STATE ============================== */
 const SIM_DT=1/120,G=1500,JUMP=560,METER=22;
@@ -481,8 +560,8 @@ const DIFFS=[
   {min:430,max:1120,ramp:0.030,gap:1.0, tree:0.26},
   {min:500,max:1260,ramp:0.042,gap:0.78,tree:0.32}
 ];
-let diffIdx=clamp(load('nm_diff',1),0,2),DIFF=DIFFS[diffIdx];
-let best=load('nm_best',0);
+let diffIdx=clamp(load('diff',1),0,2),DIFF=DIFFS[diffIdx];
+let best=load('best',0);
 let state='menu',tSim=0,tGlobal=0,timeScale=1,acc=0;
 let meters=0,starCount=0,bonusPts=0,trickPts=0,trickCount=0;
 let cStreak=0,cTimer=0,spawnX=820,shakeA=0,flash=0,crashT=0,goShown=false,finalStats=null,causeText='';
@@ -824,9 +903,19 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='p
 const skyStars=[];for(let i=0;i<90;i++)skyStars.push({x:Math.random(),y:Math.random()*0.55,r:rand(0.6,1.7),tw:rand(1,3),ph:rand(TAU)});
 const clouds=[];for(let i=0;i<6;i++)clouds.push({x0:rand(2400),y:rand(0.07,0.3),s:rand(0.7,1.4),spd:rand(4,9)});
 
+/* Cached gradient helper (item 5): reuse object while size+palette key unchanged */
+function cachedGrad(store,keyFn,build){
+  if(store.obj&&store.key===keyFn())return store.obj;
+  store.obj=build();store.key=keyFn();return store.obj;
+}
+const skyGradS={obj:null,key:''},auroraS=[{obj:null,key:''},{obj:null,key:''}],fogS={obj:null,key:''},
+      terrainS={obj:null,key:''},vignetteS={obj:null,key:''};
+
 function drawSky(dev){
-  const g=ctx.createLinearGradient(0,0,0,VH*0.85);
-  g.addColorStop(0,C.skyT);g.addColorStop(1,C.skyB);
+  const g=cachedGrad(skyGradS,()=>VH+'|'+paletteKey,()=>{
+    const gr=ctx.createLinearGradient(0,0,0,VH*0.85);
+    gr.addColorStop(0,C.skyT);gr.addColorStop(1,C.skyB);return gr;
+  });
   ctx.fillStyle=g;ctx.fillRect(0,0,VW,VH);
   const n=C.night;
   if(n>0.02){
@@ -841,9 +930,11 @@ function drawSky(dev){
     if(n>0.3){
       ctx.save();ctx.globalCompositeOperation='lighter';
       for(let b=0;b<2;b++){
-        const grad=ctx.createLinearGradient(0,VH*0.05,0,VH*0.42);
-        grad.addColorStop(0,b===0?'rgba(90,240,180,'+(0.16*n)+')':'rgba(110,200,255,'+(0.12*n)+')');
-        grad.addColorStop(1,'rgba(90,240,180,0)');
+        const grad=cachedGrad(auroraS[b],()=>VH+'|'+Math.round(n*20),()=>{
+          const gr=ctx.createLinearGradient(0,VH*0.05,0,VH*0.42);
+          gr.addColorStop(0,b===0?'rgba(90,240,180,'+(0.16*n)+')':'rgba(110,200,255,'+(0.12*n)+')');
+          gr.addColorStop(1,'rgba(90,240,180,0)');return gr;
+        });
         ctx.fillStyle=grad;ctx.beginPath();
         const base=VH*(0.13+b*0.06);
         for(let sx=-20;sx<=VW+20;sx+=26){
@@ -858,8 +949,9 @@ function drawSky(dev){
       }
       ctx.restore();
     }
+    /* Falling star: coordinates are in world space (converted in simStep) — item 7 fix */
     if(Math.random()<0.0012&&!reduced)
-      addP({type:'shoot',x:rand(VW*0.2,VW),y:rand(VH*0.05,VH*0.25),vx:-700,vy:260,t:0,life:0.5,size:60,scr:true});
+      addP({type:'shoot',x:cam.x+rand(VW*0.2,VW),y:cam.y+rand(VH*0.05,VH*0.25),vx:-700,vy:260,t:0,life:0.5,size:60});
   }
   const sx=VW*0.78,sy=VH*0.18+dev*0.04;
   if(n<0.98){
@@ -889,8 +981,8 @@ function drawSky(dev){
 }
 function drawRidge(pf,w,hMin,hMax,col,cap,baseY,seedK){
   const ox=cam.x*pf,i0=Math.floor(ox/w)-1,n=Math.ceil(VW/w)+3;
-  const v=i=>hash(i*3.1+seedK)*26;
-  const h=i=>hMin+hash(i*7.3+seedK)*(hMax-hMin);
+  const v=i=>ridgeVal(i,seedK)*26;
+  const h=i=>hMin+ridgeVal(i,seedK+5000)*(hMax-hMin);
   ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(-60,VH+60);
   for(let i=i0;i<i0+n;i++){const x0=i*w-ox;
     ctx.lineTo(x0,baseY-v(i));ctx.lineTo(x0+w*0.5,baseY-h(i));}
@@ -923,8 +1015,8 @@ function drawHills(dev){
   ctx.lineTo(VW+30,VH+60);ctx.closePath();ctx.fill();
   const j0=Math.floor(ox/88)-1,n=Math.ceil(VW/88)+3;
   for(let j=j0;j<j0+n;j++){
-    if(hash(j*1.7+9)<0.42)continue;
-    const x=j*88-ox+hash(j*2.3+4)*40,h=20+hash(j*3.7+11)*26;
+    if(ridgeVal(j,9001)<0.42)continue;
+    const x=j*88-ox+ridgeVal(j,9002)*40,h=20+ridgeVal(j,9003)*26;
     drawFir(x,hillY(x+ox,base)+2,h,C.trees,null);
   }
   const fg=ctx.createLinearGradient(0,base-130,0,base+30);
@@ -947,8 +1039,8 @@ function drawTerrain(){
   ctx.fillStyle=C.sparkle;
   const k0=Math.floor(x0/70),k1=Math.ceil(x1/70);
   for(let k=k0;k<=k1;k++){
-    if(hash(k*5.1+2)<0.55)continue;
-    const x=k*70+hash(k*3.3)*50,y=groundY(x)+8+hash(k*7.7)*40;
+    if(ridgeVal(k,4001)<0.55)continue;
+    const x=k*70+ridgeVal(k,4002)*50,y=groundY(x)+8+ridgeVal(k,4003)*40;
     ctx.globalAlpha=0.35+0.4*Math.sin(tSim*2+k);
     ctx.fillRect(x,y,2.2,2.2);
   }
@@ -1237,8 +1329,8 @@ function drawFg(){
   const i0=Math.floor(ox/w)-1,n=Math.ceil(VW/w)+3;
   ctx.globalAlpha=0.88;
   for(let i=i0;i<i0+n;i++){
-    if(hash(i*9.1+31)<0.78)continue;
-    const x=i*w-ox+hash(i*4.7+13)*300,h=120+hash(i*6.3+7)*90;
+    if(ridgeVal(i,7001)<0.78)continue;
+    const x=i*w-ox+ridgeVal(i,7002)*300,h=120+ridgeVal(i,7003)*90;
     drawFir(x,VH+14,h,C.fg,null);
   }
   ctx.globalAlpha=1;
@@ -1352,7 +1444,7 @@ function showGameOver(){
   els.goTrick.textContent=f.tc;els.goTrickPts.textContent='+'+fmt(f.tp);
   els.goTotal.textContent=fmt(total);
   const rec=total>best;
-  if(rec){best=total;save('nm_best',best);els.bestVal.textContent=fmt(best);els.menuBest.textContent=fmt(best);}
+  if(rec){best=total;save('best',best);els.bestVal.textContent=fmt(best);els.menuBest.textContent=fmt(best);}
   els.goRecord.classList.toggle('hidden',!rec);
   setState('gameover');
 }
@@ -1374,7 +1466,7 @@ els.btnSound.addEventListener('click',e=>{e.stopPropagation();ensureAudio();togg
 document.querySelectorAll('#diffRow .pill').forEach(b=>{
   b.addEventListener('click',e=>{
     e.stopPropagation();ensureAudio();
-    diffIdx=clamp(parseInt(b.dataset.d,10)||0,0,2);DIFF=DIFFS[diffIdx];save('nm_diff',diffIdx);
+    diffIdx=clamp(parseInt(b.dataset.d,10)||0,0,2);DIFF=DIFFS[diffIdx];save('diff',diffIdx);
     document.querySelectorAll('#diffRow .pill').forEach(p=>p.classList.toggle('sel',p===b));
     sfx.ui();
   });
